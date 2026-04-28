@@ -8,11 +8,36 @@ const female = ['Siti', 'Ayu', 'Nadia', 'Putri', 'Intan', 'Rani', 'Devi', 'Lesta
 const last = ['Saputra', 'Siregar', 'Lubis', 'Harahap', 'Pratama', 'Wijaya', 'Nasution', 'Simatupang', 'Hutabarat', 'Ginting']
 const complaints = ['Penglihatan kabur', 'Mata merah', 'Silau malam', 'Mata kering', 'Sakit kepala', 'Nyeri mata', 'Kontrol pasca operasi']
 
+const actionTemplates = [
+  'Jadwalkan evaluasi komprehensif dalam 24-48 jam untuk konfirmasi diagnosis.',
+  'Lakukan OCT dan fundus ulang untuk memastikan progresivitas temuan klinis.',
+  'Prioritaskan konsul subspesialis retina dengan pemeriksaan dilatasi pupil.',
+  'Optimalkan terapi lubrikan dan edukasi higienitas kelopak, lalu kontrol 1 minggu.',
+  'Verifikasi tekanan intraokular dengan tonometri ulang dan gonioskopi bila perlu.',
+  'Review regimen obat saat ini dan pantau respons klinis pada kunjungan berikutnya.',
+  'Rencanakan pemetaan topografi kornea lanjutan sebelum keputusan tindakan refraktif.',
+]
+
+const generateRecommendedAction = (chiefComplaint: string): string => {
+  const complaintPlan: Record<string, string> = {
+    'Penglihatan kabur': 'Evaluasi refraksi subjektif-objektif dan skrining retina terstruktur.',
+    'Mata merah': 'Periksa segmen anterior untuk menyingkirkan infeksi atau inflamasi aktif.',
+    'Silau malam': 'Nilai kualitas film air mata, pupil mesopik, dan aberasi kornea.',
+    'Mata kering': 'Kerjakan penilaian dry eye score lengkap serta rencana terapi bertahap.',
+    'Sakit kepala': 'Korelasi gejala dengan status refraksi dan tekanan intraokular.',
+    'Nyeri mata': 'Triage nyeri akut dan pastikan tidak ada tanda kegawatan okular.',
+    'Kontrol pasca operasi': 'Bandingkan hasil pasca operasi dengan baseline dan target pemulihan.',
+  }
+
+  return `${complaintPlan[chiefComplaint] ?? 'Lakukan asesmen klinis menyeluruh sesuai protokol.'} ${pick(actionTemplates)}`
+}
+
 export function generatePatients(total = 10000): Patient[] {
   return Array.from({ length: total }, (_, i) => {
     const age = 8 + Math.floor(Math.random() * 72)
     const gender = Math.random() > 0.5 ? 'Laki-laki' : 'Perempuan'
     const first = gender === 'Laki-laki' ? pick(male) : pick(female)
+    const baseChiefComplaint = pick(complaints)
     const base: Patient = {
       id: `P-${i + 1}`,
       medicalRecordNumber: `MRN-${String(100000 + i)}`,
@@ -23,7 +48,7 @@ export function generatePatients(total = 10000): Patient[] {
       city: pick(CITIES),
       branch: pick(BRANCHES),
       lastVisitDate: new Date(Date.now() - Math.floor(Math.random() * 200) * 86400000).toISOString().slice(0, 10),
-      chiefComplaint: pick(complaints),
+      chiefComplaint: baseChiefComplaint,
       diagnosisHistory: ['Dry Eye', 'Refractive Error'].slice(0, Math.floor(Math.random() * 2) + 1),
       diabetesStatus: Math.random() > 0.72,
       hypertensionStatus: Math.random() > 0.68,
@@ -52,7 +77,7 @@ export function generatePatients(total = 10000): Patient[] {
       aiUrgencyLevel: 'Low',
       aiConfidence: 0,
       recommendedSpecialist: pick(SPECIALISTS),
-      recommendedAction: 'AI menemukan potensi risiko tinggi. Mohon lakukan validasi dokter.',
+      recommendedAction: generateRecommendedAction(baseChiefComplaint),
       doctorReviewStatus: Math.random() > 0.65 ? 'Pending' : 'Reviewed',
     }
     return enrichPatientWithAI(base)
