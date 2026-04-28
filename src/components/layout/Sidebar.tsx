@@ -1,19 +1,34 @@
+import {
+  Activity,
+  Bot,
+  Brain,
+  Building2,
+  Eye,
+  Gauge,
+  LayoutDashboard,
+  ScanEye,
+  Settings,
+  ShieldAlert,
+  Stethoscope,
+  UserSquare2,
+  Users,
+} from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 
 const links = [
-  ['/', 'Dashboard', '📊'],
-  ['/patients', 'Patients', '👥'],
-  ['/retina-screening', 'Retina', '🩺'],
-  ['/oct-second-opinion', 'OCT', '🧠'],
-  ['/lasik-score', 'LASIK', '👁️'],
-  ['/digital-twin', 'Digital Twin', '🧬'],
-  ['/post-op-guardian', 'Post-Op', '🛡️'],
-  ['/surgical-coach', 'Surgical Coach', '🧑‍⚕️'],
-  ['/patient-educator', 'Patient Educator', '📚'],
-  ['/myopia-control', 'Myopia', '🔎'],
-  ['/branch-analytics', 'Branch Analytics', '🏥'],
-  ['/settings', 'Settings', '⚙️'],
-]
+  ['/', 'Dashboard', LayoutDashboard],
+  ['/patients', 'Patients', Users],
+  ['/retina-screening', 'Retina', Eye],
+  ['/oct-second-opinion', 'OCT', ScanEye],
+  ['/lasik-score', 'LASIK', Gauge],
+  ['/digital-twin', 'Digital Twin', Bot],
+  ['/post-op-guardian', 'Post-Op', ShieldAlert],
+  ['/surgical-coach', 'Surgical Coach', Stethoscope],
+  ['/patient-educator', 'Patient Educator', UserSquare2],
+  ['/myopia-control', 'Myopia', Activity],
+  ['/branch-analytics', 'Branch Analytics', Building2],
+  ['/settings', 'Settings', Settings],
+] as const
 
 function Brand() {
   return (
@@ -21,7 +36,7 @@ function Brand() {
       <div className="flex items-center gap-3">
         <img src="/logo.svg" alt="PrimeVision AI logo" className="h-8 w-8 shrink-0" />
         <div>
-          <p className="text-sm font-semibold text-gold">PrimeVision AI</p>
+          <p className="text-sm font-semibold text-navy">PrimeVision AI</p>
           <p className="text-xs text-slate-500">Command Center</p>
         </div>
       </div>
@@ -33,10 +48,10 @@ function Brand() {
 export function Sidebar() {
   return (
     <>
-      <aside className="hidden w-72 shrink-0 border-r border-slate-200/80 bg-white/80 p-4 backdrop-blur-xl lg:block">
+      <aside className="sticky top-0 hidden h-screen w-72 shrink-0 border-r border-slate-200/80 bg-white/80 p-4 backdrop-blur-xl lg:block">
         <Brand />
         <nav className="space-y-1">
-          {links.map(([to, label, icon]) => (
+          {links.map(([to, label, Icon]) => (
             <NavLink
               key={to}
               to={to}
@@ -48,7 +63,7 @@ export function Sidebar() {
                 }`
               }
             >
-              <span className="text-base">{icon}</span>
+              <Icon size={16} className="opacity-85" />
               <span>{label}</span>
             </NavLink>
           ))}
@@ -58,7 +73,7 @@ export function Sidebar() {
       <nav className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 px-3 py-2 backdrop-blur lg:hidden">
         <div className="mb-2 flex items-center gap-2">
           <img src="/logo.svg" alt="PrimeVision AI logo" className="h-6 w-6 shrink-0" />
-          <p className="text-sm font-semibold text-gold">PrimeVision AI</p>
+          <p className="text-sm font-semibold text-navy">PrimeVision AI</p>
         </div>
         <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
           {links.map(([to, label]) => (

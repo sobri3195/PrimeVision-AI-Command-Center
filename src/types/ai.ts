@@ -1,3 +1,3 @@
 export type UrgencyLevel = 'Low' | 'Medium' | 'High' | 'Critical'
 export type LasikEligibility = 'Eligible' | 'Need Further Evaluation' | 'Not Recommended'
-export type DoctorRole = 'Doctor' | 'Optometrist' | 'Nurse' | 'Admin' | 'Management'
+export type DoctorRole = 'Doctor' | 'Admin' | 'Reviewer'

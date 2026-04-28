@@ -1,2 +1,29 @@
+import { useState } from 'react'
 import type { DoctorRole } from '../types/ai'
-export function Settings({ role }: { role: DoctorRole }) { return <div className="space-y-4"><div className="card p-5 space-y-2"><h2 className="text-xl font-semibold text-navy">Settings</h2><p className="text-sm">Current role demo: <b>{role}</b></p><p className="text-sm">AI disclaimer, consent management, audit log dummy, SATUSEHAT-ready placeholder, HL7 FHIR-ready placeholder.</p><p className="text-xs text-slate-500">Data pasien pada prototype ini adalah dummy dataset.</p></div></div> }
+import { PageHeader } from '../components/layout/PageHeader'
+
+export function Settings({ role }: { role: DoctorRole }) {
+  const [notif, setNotif] = useState(true)
+  const [compact, setCompact] = useState(false)
+
+  return (
+    <div className="space-y-4">
+      <PageHeader title="Settings" subtitle="User preferences, notification settings, theme controls, and role display." />
+      <div className="card p-5 space-y-4 text-sm">
+        <p>Current role display: <b>{role}</b></p>
+        <details className="rounded-xl border p-3" open>
+          <summary className="cursor-pointer font-medium">Notification settings</summary>
+          <label className="mt-2 flex items-center gap-2"><input type="checkbox" checked={notif} onChange={(e) => setNotif(e.target.checked)} />Enable AI urgent alert notification</label>
+        </details>
+        <details className="rounded-xl border p-3">
+          <summary className="cursor-pointer font-medium">Theme settings</summary>
+          <label className="mt-2 flex items-center gap-2"><input type="checkbox" checked={compact} onChange={(e) => setCompact(e.target.checked)} />Use compact density layout</label>
+        </details>
+        <details className="rounded-xl border p-3">
+          <summary className="cursor-pointer font-medium">Clinical safety note</summary>
+          <p className="mt-2 text-slate-600">Prototype only. AI assists screening and review workflow. Final clinical decision remains with the doctor.</p>
+        </details>
+      </div>
+    </div>
+  )
+}
