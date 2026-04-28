@@ -1,0 +1,1 @@
+export function MyopiaControl() { return <div className="card p-5 space-y-2"><h2 className="text-xl font-semibold text-navy">AI Myopia Control</h2><p className="text-sm">Risk scoring anak berdasarkan usia, derajat myopia, axial length, screen time, dan aktivitas outdoor.</p><p className="text-sm">Recommended control schedule: follow-up setiap 3 bulan.</p></div> }

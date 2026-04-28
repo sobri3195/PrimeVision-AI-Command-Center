@@ -1,0 +1,2 @@
+import { PageHeader } from '../components/layout/PageHeader'
+export function LASIKScore() { return <div className="space-y-4"><PageHeader title="AI LASIK Suitability Score" subtitle="Hasil ini adalah simulasi awal. Keputusan akhir tetap dilakukan oleh dokter spesialis mata." /><div className="card p-5 text-sm space-y-2"><p>LASIK eligibility score: <b>74</b></p><p>Recommendation: <b>Need Further Evaluation</b></p><p>Candidate pathway: PRK candidate.</p><p>Risk factors: corneal thickness borderline, dry eye score tinggi.</p></div></div> }

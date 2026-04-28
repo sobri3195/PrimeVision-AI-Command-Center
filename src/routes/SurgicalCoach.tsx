@@ -1,0 +1,1 @@
+export function SurgicalCoach() { return <div className="card p-5 space-y-2"><h2 className="text-xl font-semibold text-navy">AI Surgical Coach</h2><p className="text-sm">Dummy surgery video, stability score, complication risk indicator, dan doctor training analytics.</p></div> }

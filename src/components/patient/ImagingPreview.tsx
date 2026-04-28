@@ -1,0 +1,1 @@
+export function ImagingPreview({ label }: { label: string }) { return <div className="card flex h-56 items-center justify-center bg-gradient-to-br from-sky-50 to-slate-100 text-sm text-slate-500">{label} Placeholder</div> }

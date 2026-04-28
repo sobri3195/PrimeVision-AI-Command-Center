@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+
+.card { @apply rounded-2xl bg-white shadow-soft border border-slate-100; }
