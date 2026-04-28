@@ -1,0 +1,1 @@
+export function ConfidenceMeter({ value }: { value: number }) { return <div><p className="text-xs text-slate-500">AI Confidence {value}%</p><div className="mt-2 h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-navy" style={{ width: `${value}%` }} /></div></div> }

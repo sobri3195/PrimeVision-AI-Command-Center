@@ -1,0 +1,4 @@
+import { PageHeader } from '../components/layout/PageHeader'
+import { ImagingPreview } from '../components/patient/ImagingPreview'
+import { AIExplainabilityBox } from '../components/ai/AIExplainabilityBox'
+export function OCTSecondOpinion() { return <div className="space-y-4"><PageHeader title="AI OCT Second Opinion" subtitle="Prototype only. Not for clinical diagnosis." /><div className="grid gap-4 lg:grid-cols-2"><ImagingPreview label="OCT with annotation overlay" /><div className="card p-4 space-y-2 text-sm"><p>Possible finding: <b>Macular edema</b></p><p>AI confidence: <b>82%</b></p><p>Suggested action: Review by retina specialist and repeat OCT in 2 weeks.</p><AIExplainabilityBox text="AI detected abnormal pattern in macular region based on simulated OCT feature." /></div></div></div> }

@@ -1,0 +1,1 @@
+export function PatientTimeline() { const events = ['Registrasi', 'Screening awal', 'AI scoring', 'Review dokter']; return <div className="card p-4"><h3 className="mb-2 font-semibold text-navy">Patient Timeline</h3><ul className="space-y-2 text-sm">{events.map(e => <li key={e} className="rounded-lg bg-slate-50 px-3 py-2">{e}</li>)}</ul></div> }

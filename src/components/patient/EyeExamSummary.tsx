@@ -1,0 +1,2 @@
+import type { Patient } from '../../types/patient'
+export function EyeExamSummary({ patient }: { patient: Patient }) { return <div className="card p-4 text-sm"><h3 className="mb-2 font-semibold text-navy">Eye Exam Summary</h3><p>Visus: R {patient.visualAcuityRight} / L {patient.visualAcuityLeft}</p><p>IOP: R {patient.intraocularPressureRight} / L {patient.intraocularPressureLeft}</p><p>Cataract Grade: {patient.cataractGrade}</p></div> }

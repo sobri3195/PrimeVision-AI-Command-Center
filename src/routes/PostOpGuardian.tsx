@@ -1,0 +1,2 @@
+import { PageHeader } from '../components/layout/PageHeader'
+export function PostOpGuardian() { return <div className="space-y-4"><PageHeader title="AI Post-Op Guardian" subtitle="Monitoring keluhan dan red flag pasca operasi." /><div className="card p-4 text-sm space-y-2"><p>Filter: LASIK / Katarak / Retina / Glaukoma</p><p>WhatsApp template: “Halo Bapak/Ibu, berdasarkan keluhan Anda, kami sarankan untuk segera kontrol ke Prime Center.”</p><p className="text-red-600 font-medium">12 pasien red flag memerlukan eskalasi dokter.</p></div></div> }

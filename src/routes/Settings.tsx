@@ -1,0 +1,2 @@
+import type { DoctorRole } from '../types/ai'
+export function Settings({ role }: { role: DoctorRole }) { return <div className="space-y-4"><div className="card p-5 space-y-2"><h2 className="text-xl font-semibold text-navy">Settings</h2><p className="text-sm">Current role demo: <b>{role}</b></p><p className="text-sm">AI disclaimer, consent management, audit log dummy, SATUSEHAT-ready placeholder, HL7 FHIR-ready placeholder.</p><p className="text-xs text-slate-500">Data pasien pada prototype ini adalah dummy dataset.</p></div></div> }
