@@ -1,2 +1,2 @@
 import { generatePatients } from './generatePatients'
-export const mockPatients = generatePatients(10000)
+export const mockPatients = generatePatients(1000)
