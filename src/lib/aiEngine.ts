@@ -3,6 +3,11 @@ import { clamp } from './utils'
 import { confidenceFromRisk, lasikEligibilityFromScore, urgencyFromScore } from './scoring'
 
 const vaPenalty = (va: number) => (va < 0.4 ? 18 : va < 0.7 ? 10 : 3)
+const seededNoise = (seed: string, min: number, max: number) => {
+  const hash = Array.from(seed).reduce((acc, char, idx) => acc + char.charCodeAt(0) * (idx + 3), 0)
+  const normalized = Math.abs(Math.sin(hash))
+  return Math.round(min + normalized * (max - min))
+}
 
 export function overallEyeRiskScore(p: Patient): number {
   let score = p.age > 60 ? 18 : p.age > 45 ? 10 : 4
@@ -31,7 +36,7 @@ export function glaucomaRiskScore(p: Patient): number {
   let score = iop > 24 ? 35 : iop > 21 ? 22 : 8
   score += p.age > 60 ? 12 : 5
   score += p.octStatus === 'Abnormal' ? 18 : p.octStatus === 'Suspicious' ? 8 : 2
-  score += p.age > 50 && Math.random() > 0.6 ? 8 : 2
+  score += p.age > 50 ? seededNoise(`${p.id}-glaucoma-age`, 2, 8) : 2
   score += vaPenalty((p.visualAcuityRight + p.visualAcuityLeft) / 2)
   return clamp(Math.round(score))
 }
@@ -51,10 +56,10 @@ export function lasikSuitabilityScore(p: Patient): number {
 export function postOpAlertScore(p: Patient): number {
   let score = p.postOpStatus === 'Red Flag' ? 45 : p.postOpStatus === 'Monitoring' ? 22 : 6
   score += /nyeri|kabur|merah/i.test(p.chiefComplaint) ? 18 : 3
-  score += Math.random() > 0.7 ? 10 : 2
-  score += Math.random() > 0.65 ? 10 : 2
-  score += Math.random() > 0.7 ? 9 : 2
-  score += Math.floor(Math.random() * 15)
+  score += seededNoise(`${p.id}-post-op-1`, 2, 10)
+  score += seededNoise(`${p.id}-post-op-2`, 2, 10)
+  score += seededNoise(`${p.id}-post-op-3`, 2, 9)
+  score += seededNoise(`${p.id}-post-op-4`, 0, 14)
   return clamp(score)
 }
 
@@ -63,10 +68,20 @@ export function myopiaProgressionRiskScore(p: Patient): number {
   let score = 20
   score += Math.abs(p.myopiaDegree) > 3 ? 20 : 8
   score += p.axialLength > 24 ? 18 : 7
-  score += Math.random() > 0.5 ? 15 : 6
-  score += Math.random() > 0.5 ? 12 : 5
-  score += Math.random() > 0.5 ? 10 : 4
+  score += seededNoise(`${p.id}-myopia-1`, 6, 15)
+  score += seededNoise(`${p.id}-myopia-2`, 5, 12)
+  score += seededNoise(`${p.id}-myopia-3`, 4, 10)
   return clamp(score)
+}
+
+export function buildAIHighlights(p: Patient): string[] {
+  const avgVa = ((p.visualAcuityLeft + p.visualAcuityRight) / 2).toFixed(2)
+  return [
+    `Skor risiko total ${p.aiRiskScore} dengan prioritas ${p.aiUrgencyLevel}.`,
+    `Tekanan intraokular R/L ${p.intraocularPressureRight}/${p.intraocularPressureLeft} mmHg dan status OCT ${p.octStatus}.`,
+    `Rata-rata visus ${avgVa} dengan status fundus ${p.fundusStatus}.`,
+    `Prediksi kelayakan LASIK: ${p.lasikEligibility}.`,
+  ]
 }
 
 export function enrichPatientWithAI(p: Patient): Patient {
