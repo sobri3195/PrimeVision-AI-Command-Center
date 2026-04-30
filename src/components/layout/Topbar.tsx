@@ -7,11 +7,13 @@ export function Topbar({
   setSearch,
   role,
   setRole,
+  notificationsEnabled,
 }: {
   search: string
   setSearch: (v: string) => void
   role: DoctorRole
   setRole: (v: DoctorRole) => void
+  notificationsEnabled: boolean
 }) {
   const roles: DoctorRole[] = ['Doctor', 'Admin', 'Reviewer']
   const now = new Date().toLocaleDateString('id-ID', {
@@ -39,7 +41,10 @@ export function Topbar({
         <div className="flex items-center gap-2 text-xs md:text-sm">
           <span className="rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700">System Online</span>
           <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">{now}</span>
-          <button className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 hover:bg-slate-50">
+          <button
+            className={`rounded-full border bg-white p-2 hover:bg-slate-50 ${notificationsEnabled ? 'border-emerald-300 text-emerald-600' : 'border-slate-200 text-slate-400'}`}
+            title={notificationsEnabled ? 'AI urgent alert enabled' : 'AI urgent alert disabled'}
+          >
             <Bell size={14} />
           </button>
         </div>

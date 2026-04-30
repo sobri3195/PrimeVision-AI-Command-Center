@@ -21,18 +21,22 @@ import type { DoctorRole } from './types/ai'
 function App() {
   const [search, setSearch] = useState('')
   const [role, setRole] = useState<DoctorRole>((localStorage.getItem('pv_role') as DoctorRole) || 'Doctor')
+  const [notificationsEnabled, setNotificationsEnabled] = useState(localStorage.getItem('pv_notif') !== 'false')
+  const [compactMode, setCompactMode] = useState(localStorage.getItem('pv_compact') === 'true')
 
   useEffect(() => localStorage.setItem('pv_role', role), [role])
+  useEffect(() => localStorage.setItem('pv_notif', String(notificationsEnabled)), [notificationsEnabled])
+  useEffect(() => localStorage.setItem('pv_compact', String(compactMode)), [compactMode])
 
   return (
-    <div className="flex min-h-screen bg-slate-100 text-slate-800">
+    <div className={`flex min-h-screen bg-slate-100 text-slate-800 ${compactMode ? 'text-[13px]' : ''}`}>
       <div className="pointer-events-none fixed inset-0 -z-0 bg-[radial-gradient(circle_at_20%_10%,rgba(201,162,39,0.14),transparent_24%),radial-gradient(circle_at_80%_0%,rgba(15,39,71,0.12),transparent_28%)]" />
       <Sidebar />
       <div className="relative z-10 flex-1">
-        <Topbar search={search} setSearch={setSearch} role={role} setRole={setRole} />
-        <main className="p-4 md:p-6">
+        <Topbar search={search} setSearch={setSearch} role={role} setRole={setRole} notificationsEnabled={notificationsEnabled} />
+        <main className={compactMode ? 'p-3 md:p-4' : 'p-4 md:p-6'}>
           <Routes>
-            <Route path="/" element={<Dashboard patients={mockPatients} />} />
+            <Route path="/" element={<Dashboard patients={mockPatients} globalSearch={search} />} />
             <Route path="/patients" element={<Patients patients={mockPatients} globalSearch={search} />} />
             <Route path="/patients/:id" element={<PatientDetail patients={mockPatients} />} />
             <Route path="/retina-screening" element={<RetinaScreening />} />
@@ -44,7 +48,7 @@ function App() {
             <Route path="/patient-educator" element={<PatientEducator />} />
             <Route path="/myopia-control" element={<MyopiaControl />} />
             <Route path="/branch-analytics" element={<BranchAnalytics />} />
-            <Route path="/settings" element={<Settings role={role} />} />
+            <Route path="/settings" element={<Settings role={role} notif={notificationsEnabled} compact={compactMode} setNotif={setNotificationsEnabled} setCompact={setCompactMode} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
