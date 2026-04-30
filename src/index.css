@@ -9,8 +9,19 @@
 
 body {
   @apply bg-slate-100 text-slate-800 antialiased;
+  background-image: radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.12), transparent 28%), radial-gradient(circle at 100% 0%, rgba(201, 162, 39, 0.16), transparent 30%);
 }
 
 .card {
-  @apply rounded-2xl border border-slate-100 bg-white/85 shadow-soft backdrop-blur-sm;
+  @apply rounded-2xl border border-white/50 bg-white/80 shadow-soft backdrop-blur-sm;
+}
+
+@layer components {
+  .glass-panel {
+    @apply border border-white/40 bg-white/70 shadow-soft backdrop-blur-xl;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-navy via-sky-600 to-cyan-500 bg-clip-text text-transparent;
+  }
 }
