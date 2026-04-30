@@ -1,10 +1,7 @@
-import { useState } from 'react'
 import type { DoctorRole } from '../types/ai'
 import { PageHeader } from '../components/layout/PageHeader'
 
-export function Settings({ role }: { role: DoctorRole }) {
-  const [notif, setNotif] = useState(true)
-  const [compact, setCompact] = useState(false)
+export function Settings({ role, notif, compact, setNotif, setCompact }: { role: DoctorRole; notif: boolean; compact: boolean; setNotif: (v: boolean) => void; setCompact: (v: boolean) => void }) {
 
   return (
     <div className="space-y-4">

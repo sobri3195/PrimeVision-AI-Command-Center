@@ -7,7 +7,7 @@ import { FilterTabs } from '../components/shared/FilterTabs'
 import { PatientDrawer } from '../components/shared/PatientDrawer'
 import type { Patient } from '../types/patient'
 
-export function Dashboard({ patients }: { patients: Patient[] }) {
+export function Dashboard({ patients, globalSearch = '' }: { patients: Patient[]; globalSearch?: string }) {
   const [branch, setBranch] = useState('All')
   const [urgency, setUrgency] = useState('All')
   const [queueTab, setQueueTab] = useState('All')
@@ -17,9 +17,12 @@ export function Dashboard({ patients }: { patients: Patient[] }) {
   const filtered = useMemo(
     () =>
       patients.filter(
-        (p) => (branch === 'All' || p.branch === branch) && (urgency === 'All' || p.aiUrgencyLevel === urgency),
+        (p) =>
+          (branch === 'All' || p.branch === branch) &&
+          (urgency === 'All' || p.aiUrgencyLevel === urgency) &&
+          (!globalSearch || `${p.name} ${p.medicalRecordNumber} ${p.branch} ${p.city}`.toLowerCase().includes(globalSearch.toLowerCase())),
       ),
-    [patients, branch, urgency],
+    [patients, branch, urgency, globalSearch],
   )
 
   const stats = {
