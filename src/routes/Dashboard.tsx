@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { loadLS, saveLS } from '../utils/localStorage'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { DoctorReviewBanner } from '../components/ai/DoctorReviewBanner'
 import { UrgencyBadge } from '../components/ai/UrgencyBadge'
@@ -13,6 +14,7 @@ export function Dashboard({ patients, globalSearch = '' }: { patients: Patient[]
   const [queueTab, setQueueTab] = useState('All')
   const [range, setRange] = useState<'Hari ini' | 'Mingguan' | 'Bulanan'>('Mingguan')
   const [selected, setSelected] = useState<Patient | null>(null)
+  const [layout, setLayout] = useState(loadLS<'queue-left' | 'chart-left'>('pvcc:v1:dashboard:layout', 'queue-left'))
 
   const filtered = useMemo(
     () =>
@@ -43,6 +45,25 @@ export function Dashboard({ patients, globalSearch = '' }: { patients: Patient[]
     .sort((a, b) => b.aiRiskScore - a.aiRiskScore)
     .slice(0, 8)
 
+
+  const exportShiftSnapshot = () => {
+    const payload = {
+      timestamp: new Date().toISOString(),
+      branch,
+      urgency,
+      range,
+      queueTab,
+      stats,
+      topQueueIds: queue.map((item) => item.id),
+    }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `shift-snapshot-${Date.now()}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
   const performance = useMemo(() => {
     const byBranch = Array.from(new Set(patients.map((p) => p.branch))).map((b) => {
       const d = patients.filter((p) => p.branch === b)
@@ -79,6 +100,11 @@ export function Dashboard({ patients, globalSearch = '' }: { patients: Patient[]
             <p className={`mt-2 inline-flex rounded-full px-3 py-1 text-sm font-semibold ${tone(label)}`}>{value}</p>
           </div>
         ))}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button className="rounded-lg border px-3 py-1 text-xs" onClick={() => { const next = layout === 'queue-left' ? 'chart-left' : 'queue-left'; setLayout(next); saveLS('pvcc:v1:dashboard:layout', next) }}>Toggle layout</button>
+        <button className="rounded-lg border px-3 py-1 text-xs" onClick={exportShiftSnapshot}>Export shift handover snapshot</button>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
