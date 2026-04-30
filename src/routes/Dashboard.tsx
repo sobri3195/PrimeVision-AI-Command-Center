@@ -1,155 +1,89 @@
 import { useMemo, useState } from 'react'
-import { loadLS, saveLS } from '../utils/localStorage'
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { DoctorReviewBanner } from '../components/ai/DoctorReviewBanner'
-import { UrgencyBadge } from '../components/ai/UrgencyBadge'
+import {
+  AlertTriangle,
+  BrainCircuit,
+  CheckCircle2,
+  Eye,
+  HeartPulse,
+  Microscope,
+  ShieldAlert,
+  Stethoscope,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react'
 import { PageHeader } from '../components/layout/PageHeader'
-import { FilterTabs } from '../components/shared/FilterTabs'
-import { PatientDrawer } from '../components/shared/PatientDrawer'
+import { AICommandBar } from '../components/dashboard/AICommandBar'
+import { KPIGrid } from '../components/dashboard/KPIGrid'
+import { AIInsightsPanel } from '../components/dashboard/AIInsightsPanel'
+import { PriorityQueue } from '../components/dashboard/PriorityQueue'
+import { BranchPerformanceChart } from '../components/dashboard/BranchPerformanceChart'
+import { ExplainabilityPanel } from '../components/dashboard/ExplainabilityPanel'
 import type { Patient } from '../types/patient'
 
+const quickPrompts = ['Critical patients', 'Follow-up overdue', 'Branch anomaly', 'Doctor review needed']
+
 export function Dashboard({ patients, globalSearch = '' }: { patients: Patient[]; globalSearch?: string }) {
-  const [branch, setBranch] = useState('All')
-  const [urgency, setUrgency] = useState('All')
-  const [queueTab, setQueueTab] = useState('All')
-  const [range, setRange] = useState<'Hari ini' | 'Mingguan' | 'Bulanan'>('Mingguan')
-  const [selected, setSelected] = useState<Patient | null>(null)
-  const [layout, setLayout] = useState(loadLS<'queue-left' | 'chart-left'>('pvcc:v1:dashboard:layout', 'queue-left'))
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [period, setPeriod] = useState<'Today' | 'Weekly' | 'Monthly'>('Weekly')
 
   const filtered = useMemo(
-    () =>
-      patients.filter(
-        (p) =>
-          (branch === 'All' || p.branch === branch) &&
-          (urgency === 'All' || p.aiUrgencyLevel === urgency) &&
-          (!globalSearch || `${p.name} ${p.medicalRecordNumber} ${p.branch} ${p.city}`.toLowerCase().includes(globalSearch.toLowerCase())),
-      ),
-    [patients, branch, urgency, globalSearch],
+    () => patients.filter((p) => !globalSearch || `${p.name} ${p.medicalRecordNumber} ${p.branch}`.toLowerCase().includes(globalSearch.toLowerCase())),
+    [patients, globalSearch],
   )
 
-  const stats = {
-    'SLA Review': `${Math.max(81, 100 - Math.round((filtered.filter((p) => p.doctorReviewStatus === 'Pending').length / Math.max(filtered.length, 1)) * 100))}%`,
-    'Akurasi AI': '96.2%',
-    'Kepatuhan Follow-up': '89%',
-    'Total Pasien': filtered.length,
-    Critical: filtered.filter((p) => p.aiUrgencyLevel === 'Critical').length,
-    High: filtered.filter((p) => p.aiUrgencyLevel === 'High').length,
-    'Doctor Review': filtered.filter((p) => p.doctorReviewStatus === 'Pending').length,
-    'LASIK Eligible': filtered.filter((p) => p.lasikEligibility === 'Eligible').length,
-    'Diabetes Retina Screening': filtered.filter((p) => p.diabetesStatus && p.diabeticRetinopathyRisk >= 60).length,
-    'Post-op Red Flag': filtered.filter((p) => p.postOpStatus === 'Red Flag').length,
-  }
+  const queue = useMemo(() => [...filtered].sort((a, b) => b.aiRiskScore - a.aiRiskScore).slice(0, 10), [filtered])
+  const selected = queue.find((p) => p.id === selectedId) || queue[0] || null
 
-  const queue = [...filtered]
-    .filter((p) => (queueTab === 'Review' ? p.doctorReviewStatus === 'Pending' : queueTab === 'All' ? true : p.aiUrgencyLevel === queueTab))
-    .sort((a, b) => b.aiRiskScore - a.aiRiskScore)
-    .slice(0, 8)
+  const kpis: { label: string; value: string | number; trend: string; micro: string; icon: any; tone: 'critical' | 'high' | 'review' | 'stable' }[] = [
+    { label: 'Critical Patients', value: filtered.filter((p) => p.aiUrgencyLevel === 'Critical').length, trend: '+12%', micro: 'vs yesterday', icon: AlertTriangle, tone: 'critical' },
+    { label: 'Doctor Review Required', value: filtered.filter((p) => p.doctorReviewStatus === 'Pending').length, trend: '+7%', micro: 'awaiting sign-off', icon: Stethoscope, tone: 'high' },
+    { label: 'Follow-up Compliance', value: '89.3%', trend: '+8.2%', micro: 'week over week', icon: CheckCircle2, tone: 'stable' },
+    { label: 'Post-op Red Flags', value: filtered.filter((p) => p.postOpStatus === 'Red Flag').length, trend: '-3%', micro: 'improved this week', icon: ShieldAlert, tone: 'review' },
+    { label: 'Retina Screening', value: filtered.filter((p) => p.diabetesStatus).length, trend: '+5%', micro: 'high-priority due', icon: Eye, tone: 'stable' },
+    { label: 'LASIK Eligible', value: filtered.filter((p) => p.lasikEligibility === 'Eligible').length, trend: '+4%', micro: 'candidate pipeline', icon: Microscope, tone: 'stable' },
+    { label: 'Branch Performance Score', value: '84.6', trend: '-1.2%', micro: 'vs network average', icon: HeartPulse, tone: 'review' },
+    { label: 'AI Confidence', value: '96.2%', trend: '+0.8%', micro: 'validated model confidence', icon: BrainCircuit, tone: 'stable' },
+  ]
 
+  const insights = [
+    { severity: 'Critical', confidence: 97, text: '45 patients require urgent review based on retina/OCT anomaly signals.', action: 'Escalate to retina team within 2 hours.' },
+    { severity: 'Stable', confidence: 92, text: 'Follow-up compliance improved 8.2% this week.', action: 'Maintain reminder cadence and monitor no-show rate.' },
+    { severity: 'High', confidence: 88, text: 'Prime Center Nana Rohana shows lower screening throughput than branch average.', action: 'Rebalance technician and imaging slots tomorrow morning.' },
+    { severity: 'Review', confidence: 94, text: '320 post-op patients have elevated red flag indicators.', action: 'Initiate nurse triage and same-day doctor review for top quartile.' },
+  ] as const
 
-  const exportShiftSnapshot = () => {
-    const payload = {
-      timestamp: new Date().toISOString(),
-      branch,
-      urgency,
-      range,
-      queueTab,
-      stats,
-      topQueueIds: queue.map((item) => item.id),
-    }
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `shift-snapshot-${Date.now()}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-  const performance = useMemo(() => {
-    const byBranch = Array.from(new Set(patients.map((p) => p.branch))).map((b) => {
-      const d = patients.filter((p) => p.branch === b)
-      const multiplier = range === 'Hari ini' ? 0.8 : range === 'Bulanan' ? 1.25 : 1
-      return {
-        name: b,
-        score: Math.round((d.reduce((acc, x) => acc + x.aiRiskScore, 0) / Math.max(d.length, 1)) * multiplier),
-      }
-    })
-    return byBranch
-  }, [patients, range])
-
-  const tone = (label: string) => {
-    if (label.includes('Critical') || label.includes('Red Flag')) return 'text-rose-700 bg-rose-50'
-    if (label.includes('High') || label.includes('Review')) return 'text-amber-700 bg-amber-50'
-    if (label.includes('Akurasi') || label.includes('SLA')) return 'text-emerald-700 bg-emerald-50'
-    return 'text-sky-700 bg-sky-50'
-  }
+  const branchData = [
+    { branch: 'Nana Rohana', score: 72, avg: 78, trend: 70 },
+    { branch: 'Jakarta Selatan', score: 88, avg: 78, trend: 84 },
+    { branch: 'Bandung Central', score: 81, avg: 78, trend: 80 },
+    { branch: 'Surabaya West', score: 76, avg: 78, trend: 77 },
+  ]
 
   return (
-    <div className="space-y-5">
-      <PageHeader title="PrimeVision AI Command Center" subtitle="AI-powered clinical dashboard for eye care operations" />
-      <DoctorReviewBanner />
+    <div className="space-y-4">
+      <PageHeader title="PrimeVision AI Command Center" subtitle="AI-powered clinical operations dashboard for eye care centers" />
+      <AICommandBar prompts={quickPrompts} />
+      <KPIGrid items={kpis} />
 
-      <div className="grid gap-3 lg:grid-cols-2">
-        <FilterTabs items={['All', ...Array.from(new Set(patients.map((p) => p.branch)))]} active={branch} onChange={setBranch} />
-        <FilterTabs items={['All', 'Low', 'Medium', 'High', 'Critical']} active={urgency} onChange={setUrgency} />
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        {Object.entries(stats).map(([label, value]) => (
-          <div key={label} className="card p-4 transition hover:-translate-y-0.5 hover:shadow-lg">
-            <p className="text-xs text-slate-500">{label}</p>
-            <p className={`mt-2 inline-flex rounded-full px-3 py-1 text-sm font-semibold ${tone(label)}`}>{value}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <button className="rounded-lg border px-3 py-1 text-xs" onClick={() => { const next = layout === 'queue-left' ? 'chart-left' : 'queue-left'; setLayout(next); saveLS('pvcc:v1:dashboard:layout', next) }}>Toggle layout</button>
-        <button className="rounded-lg border px-3 py-1 text-xs" onClick={exportShiftSnapshot}>Export shift handover snapshot</button>
-      </div>
-
-      <div className="grid gap-5 xl:grid-cols-2">
+      <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+        <AIInsightsPanel insights={insights} />
         <div className="card p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="font-semibold text-navy">AI Priority Queue</h3>
-            <FilterTabs items={['All', 'Critical', 'High', 'Review']} active={queueTab} onChange={setQueueTab} />
-          </div>
-          <div className="space-y-2">
-            {queue.map((p, idx) => (
-              <button
-                key={p.id}
-                className="flex w-full items-center justify-between rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-left hover:border-navy/20"
-                onClick={() => setSelected(p)}
-              >
-                <div>
-                  <p className="text-sm font-medium text-slate-800">#{idx + 1} {p.name}</p>
-                  <p className="text-xs text-slate-500">{p.medicalRecordNumber}</p>
-                </div>
-                <UrgencyBadge urgency={p.aiUrgencyLevel} />
-              </button>
+          <h3 className="mb-3 text-sm font-semibold text-slate-900">Operational Intelligence</h3>
+          <ul className="space-y-2 text-xs text-slate-600">
+            {['AI Triage Assistant', 'Natural language clinical search', 'Automated shift handover summary', 'Follow-up gap detection', 'Branch anomaly detection', 'Doctor workload balancing', 'Patient education recommendation', 'Surgical coach insight', 'Post-op red flag monitor', 'AI audit log'].map((f) => (
+              <li key={f} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><span>{f}</span><span className="text-teal-700">Enabled</span></li>
             ))}
-          </div>
-        </div>
-
-        <div className="card p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="font-semibold text-navy">Branch Performance</h3>
-            <FilterTabs items={['Hari ini', 'Mingguan', 'Bulanan']} active={range} onChange={(v) => setRange(v as typeof range)} />
-          </div>
-          <div className="h-72">
-            <ResponsiveContainer>
-              <BarChart data={performance} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip cursor={{ fill: '#f1f5f9' }} />
-                <Bar dataKey="score" fill="#0F2747" radius={[10, 10, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          </ul>
         </div>
       </div>
 
-      <PatientDrawer patient={selected} onClose={() => setSelected(null)} />
+      <div className="grid gap-4 2xl:grid-cols-[1.25fr_1fr_0.9fr]">
+        <PriorityQueue data={queue} onSelect={setSelectedId} selectedId={selected?.id || null} />
+        <BranchPerformanceChart data={branchData} period={period} setPeriod={setPeriod} />
+        <ExplainabilityPanel patient={selected} />
+      </div>
+
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">AI suggestions require doctor review. Not for autonomous clinical diagnosis.</div>
     </div>
   )
 }
