@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Sidebar } from './components/layout/Sidebar'
 import { Topbar } from './components/layout/Topbar'
@@ -17,19 +17,38 @@ import { RetinaScreening } from './routes/RetinaScreening'
 import { Settings } from './routes/Settings'
 import { SurgicalCoach } from './routes/SurgicalCoach'
 import type { DoctorRole } from './types/ai'
+import { loadLS, saveLS } from './utils/localStorage'
 
 function App() {
   const [search, setSearch] = useState('')
-  const [role, setRole] = useState<DoctorRole>((localStorage.getItem('pv_role') as DoctorRole) || 'Doctor')
-  const [notificationsEnabled, setNotificationsEnabled] = useState(localStorage.getItem('pv_notif') !== 'false')
-  const [compactMode, setCompactMode] = useState(localStorage.getItem('pv_compact') === 'true')
+  const [role, setRole] = useState<DoctorRole>(loadLS<DoctorRole>('pvcc:v1:user:role', 'Doctor'))
+  const [notificationsEnabled, setNotificationsEnabled] = useState(loadLS<boolean>('pvcc:v1:ui:notifications', true))
+  const [compactMode, setCompactMode] = useState(loadLS<boolean>('pvcc:v1:ui:compact', false))
+  const [theme, setTheme] = useState<'light' | 'dark'>(loadLS<'light' | 'dark'>('pvcc:v1:ui:theme', 'light'))
 
-  useEffect(() => localStorage.setItem('pv_role', role), [role])
-  useEffect(() => localStorage.setItem('pv_notif', String(notificationsEnabled)), [notificationsEnabled])
-  useEffect(() => localStorage.setItem('pv_compact', String(compactMode)), [compactMode])
+  useEffect(() => saveLS('pvcc:v1:user:role', role), [role])
+  useEffect(() => saveLS('pvcc:v1:ui:notifications', notificationsEnabled), [notificationsEnabled])
+  useEffect(() => saveLS('pvcc:v1:ui:compact', compactMode), [compactMode])
+  useEffect(() => saveLS('pvcc:v1:ui:theme', theme), [theme])
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark')
+  }, [theme])
+
+  useEffect(() => {
+    const sync = (event: StorageEvent) => {
+      if (event.key === 'pvcc:v1:ui:theme') setTheme(loadLS<'light' | 'dark'>('pvcc:v1:ui:theme', 'light'))
+      if (event.key === 'pvcc:v1:ui:compact') setCompactMode(loadLS<boolean>('pvcc:v1:ui:compact', false))
+    }
+
+    window.addEventListener('storage', sync)
+    return () => window.removeEventListener('storage', sync)
+  }, [])
+
+  const shellClasses = useMemo(() => `${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-800'} ${compactMode ? 'text-[13px]' : ''}`, [theme, compactMode])
 
   return (
-    <div className={`flex min-h-screen bg-slate-100 text-slate-800 ${compactMode ? 'text-[13px]' : ''}`}>
+    <div className={`flex min-h-screen ${shellClasses}`}>
       <div className="pointer-events-none fixed inset-0 -z-0 bg-[radial-gradient(circle_at_20%_10%,rgba(201,162,39,0.14),transparent_24%),radial-gradient(circle_at_80%_0%,rgba(15,39,71,0.12),transparent_28%)]" />
       <Sidebar />
       <div className="relative z-10 flex-1">
@@ -48,7 +67,7 @@ function App() {
             <Route path="/patient-educator" element={<PatientEducator />} />
             <Route path="/myopia-control" element={<MyopiaControl />} />
             <Route path="/branch-analytics" element={<BranchAnalytics />} />
-            <Route path="/settings" element={<Settings role={role} notif={notificationsEnabled} compact={compactMode} setNotif={setNotificationsEnabled} setCompact={setCompactMode} />} />
+            <Route path="/settings" element={<Settings role={role} notif={notificationsEnabled} compact={compactMode} theme={theme} setTheme={setTheme} setNotif={setNotificationsEnabled} setCompact={setCompactMode} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
