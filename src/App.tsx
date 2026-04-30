@@ -45,11 +45,13 @@ function App() {
     return () => window.removeEventListener('storage', sync)
   }, [])
 
-  const shellClasses = useMemo(() => `${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-800'} ${compactMode ? 'text-[13px]' : ''}`, [theme, compactMode])
+  const shellClasses = useMemo(() => `${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-800'} ${compactMode ? 'text-[13px]' : ''} transition-colors duration-500`, [theme, compactMode])
 
   return (
     <div className={`flex min-h-screen ${shellClasses}`}>
-      <div className="pointer-events-none fixed inset-0 -z-0 bg-[radial-gradient(circle_at_20%_10%,rgba(201,162,39,0.14),transparent_24%),radial-gradient(circle_at_80%_0%,rgba(15,39,71,0.12),transparent_28%)]" />
+      <div className="pointer-events-none fixed inset-0 -z-0 bg-[radial-gradient(circle_at_20%_10%,rgba(201,162,39,0.16),transparent_24%),radial-gradient(circle_at_80%_0%,rgba(15,39,71,0.12),transparent_28%)]" />
+      <div className="pointer-events-none fixed -left-20 top-24 -z-0 h-64 w-64 rounded-full bg-sky-300/20 blur-3xl" />
+      <div className="pointer-events-none fixed -right-16 bottom-16 -z-0 h-72 w-72 rounded-full bg-amber-300/20 blur-3xl" />
       <Sidebar />
       <div className="relative z-10 flex-1">
         <Topbar search={search} setSearch={setSearch} role={role} setRole={setRole} notificationsEnabled={notificationsEnabled} />

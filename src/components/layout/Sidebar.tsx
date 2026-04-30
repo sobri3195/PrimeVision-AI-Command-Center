@@ -32,15 +32,15 @@ const links = [
 
 function Brand() {
   return (
-    <div className="mb-6 rounded-2xl border border-navy/10 bg-gradient-to-br from-white to-slate-50 p-4 shadow-soft">
+    <div className="glass-panel mb-6 rounded-3xl p-4">
       <div className="flex items-center gap-3">
         <img src="/logo.svg" alt="PrimeVision AI logo" className="h-8 w-8 shrink-0" />
         <div>
-          <p className="text-sm font-semibold text-navy">PrimeVision AI</p>
+          <p className="gradient-text text-sm font-semibold">PrimeVision AI</p>
           <p className="text-xs text-slate-500">Command Center</p>
         </div>
       </div>
-      <p className="mt-3 text-xs text-slate-500">Clinical intelligence platform untuk mempercepat keputusan dokter.</p>
+      <p className="mt-3 text-xs leading-relaxed text-slate-500">Clinical intelligence platform untuk mempercepat keputusan dokter dengan workflow yang lebih cepat dan presisi.</p>
     </div>
   )
 }
@@ -48,7 +48,7 @@ function Brand() {
 export function Sidebar() {
   return (
     <>
-      <aside className="sticky top-0 hidden h-screen w-72 shrink-0 border-r border-slate-200/80 bg-white/80 p-4 backdrop-blur-xl lg:block">
+      <aside className="sticky top-0 hidden h-screen w-72 shrink-0 border-r border-white/40 bg-white/65 p-4 backdrop-blur-2xl lg:block">
         <Brand />
         <nav className="space-y-1">
           {links.map(([to, label, Icon]) => (
@@ -58,8 +58,8 @@ export function Sidebar() {
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
                   isActive
-                    ? 'bg-navy text-white shadow-soft'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    ? 'bg-gradient-to-r from-navy to-sky-700 text-white shadow-soft'
+                    : 'text-slate-600 hover:bg-white/80 hover:text-slate-900'
                 }`
               }
             >
@@ -70,10 +70,10 @@ export function Sidebar() {
         </nav>
       </aside>
 
-      <nav className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 px-3 py-2 backdrop-blur lg:hidden">
+      <nav className="sticky top-0 z-30 border-b border-white/40 bg-white/80 px-3 py-2 backdrop-blur-xl lg:hidden">
         <div className="mb-2 flex items-center gap-2">
           <img src="/logo.svg" alt="PrimeVision AI logo" className="h-6 w-6 shrink-0" />
-          <p className="text-sm font-semibold text-navy">PrimeVision AI</p>
+          <p className="gradient-text text-sm font-semibold">PrimeVision AI</p>
         </div>
         <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
           {links.map(([to, label]) => (
