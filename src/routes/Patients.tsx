@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { RiskBadge } from '../components/ai/RiskBadge'
 import { PageHeader } from '../components/layout/PageHeader'
 import { FilterTabs } from '../components/shared/FilterTabs'
@@ -24,10 +24,9 @@ export function Patients({ patients, globalSearch }: { patients: Patient[]; glob
   const [sortBy, setSortBy] = useState<'name' | 'score' | 'branch'>('score')
   const [asc, setAsc] = useState(false)
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(12)
   const [activePatient, setActivePatient] = useState<Patient | null>(null)
   const [columns, setColumns] = useState<ColKey[]>(loadLS('pvcc:v1:table:patients:columns', allColumns.map((c) => c.key)))
-
-  const pageSize = 12
 
   const filtered = useMemo(() => {
     const query = `${globalSearch} ${localSearch}`.trim().toLowerCase()
@@ -46,18 +45,40 @@ export function Patients({ patients, globalSearch }: { patients: Patient[]; glob
     })
   }, [patients, globalSearch, localSearch, branch, risk, sortBy, asc])
 
-  const totalPages = Math.ceil(filtered.length / pageSize)
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const rows = filtered.slice((page - 1) * pageSize, page * pageSize)
 
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages)
+    }
+  }, [page, totalPages])
+
   const applyPreset = () => {
-    const preset = { branch, risk }
+    const preset = { branch, risk, sortBy, asc, pageSize }
     saveLS('pvcc:v1:filters:patientsPreset', preset)
   }
 
   const loadPreset = () => {
-    const preset = loadLS<{ branch: string; risk: string }>('pvcc:v1:filters:patientsPreset', { branch: 'All', risk: 'All' })
+    const preset = loadLS<{ branch: string; risk: string; sortBy: 'name' | 'score' | 'branch'; asc: boolean; pageSize: number }>(
+      'pvcc:v1:filters:patientsPreset',
+      { branch: 'All', risk: 'All', sortBy: 'score', asc: false, pageSize: 12 },
+    )
     setBranch(preset.branch)
     setRisk(preset.risk)
+    setSortBy(preset.sortBy)
+    setAsc(preset.asc)
+    setPageSize(preset.pageSize)
+    setPage(1)
+  }
+
+  const resetFilters = () => {
+    setLocalSearch('')
+    setBranch('All')
+    setRisk('All')
+    setSortBy('score')
+    setAsc(false)
+    setPageSize(12)
     setPage(1)
   }
 
@@ -65,6 +86,26 @@ export function Patients({ patients, globalSearch }: { patients: Patient[]; glob
     const next = columns.includes(key) ? columns.filter((c) => c !== key) : [...columns, key]
     setColumns(next)
     saveLS('pvcc:v1:table:patients:columns', next)
+  }
+
+  const exportCsv = () => {
+    const headers = ['MRN', 'Nama', 'Kota', 'Cabang', 'Risk Score', 'Urgency']
+    const lines = filtered.map((p) => [p.medicalRecordNumber, p.name, p.city, p.branch, p.aiRiskScore.toString(), p.aiUrgencyLevel])
+    const csv = [headers, ...lines]
+      .map((line) =>
+        line
+          .map((value) => `"${String(value).replace(/"/g, '""')}"`)
+          .join(','),
+      )
+      .join('\n')
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `patients-export-${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
   const openPatient = (p: Patient) => {
@@ -78,16 +119,23 @@ export function Patients({ patients, globalSearch }: { patients: Patient[]; glob
     <div className="space-y-4">
       <PageHeader title="Patients" subtitle="Interactive patient list with realtime search, filters, sorting, presets, and customizable columns." />
       <div className="card p-4">
-        <div className="grid gap-3 lg:grid-cols-3">
+        <div className="grid gap-3 lg:grid-cols-4">
           <input value={localSearch} onChange={(e) => { setLocalSearch(e.target.value); setPage(1) }} placeholder="Search nama, MRN, kota..." className="h-11 rounded-2xl border border-slate-200 px-4 text-sm" />
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)} className="h-11 rounded-2xl border border-slate-200 px-3 text-sm">
             <option value="score">Sort by Risk Score</option><option value="name">Sort by Name</option><option value="branch">Sort by Branch</option>
           </select>
           <button onClick={() => setAsc((v) => !v)} className="h-11 rounded-2xl border border-slate-200 bg-white text-sm">Direction: {asc ? 'Ascending' : 'Descending'}</button>
+          <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1) }} className="h-11 rounded-2xl border border-slate-200 px-3 text-sm">
+            <option value={12}>12 rows / page</option>
+            <option value={24}>24 rows / page</option>
+            <option value={48}>48 rows / page</option>
+          </select>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           <button onClick={applyPreset} className="rounded-lg border px-3 py-1 text-xs">Save current filter preset</button>
           <button onClick={loadPreset} className="rounded-lg border px-3 py-1 text-xs">Apply saved preset</button>
+          <button onClick={resetFilters} className="rounded-lg border px-3 py-1 text-xs">Reset filters</button>
+          <button onClick={exportCsv} className="rounded-lg border px-3 py-1 text-xs">Export filtered to CSV</button>
         </div>
       </div>
 
@@ -121,7 +169,12 @@ export function Patients({ patients, globalSearch }: { patients: Patient[]; glob
         </table>
       </div>
 
-      <div className="flex items-center justify-between text-sm"><span>Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, filtered.length)} of {filtered.length}</span><div className="space-x-2"><button disabled={page === 1} onClick={() => setPage((p) => p - 1)} className="rounded-lg border px-3 py-1 disabled:opacity-40">Prev</button><button disabled={page === totalPages || totalPages === 0} onClick={() => setPage((p) => p + 1)} className="rounded-lg border px-3 py-1 disabled:opacity-40">Next</button></div></div>
+      <div className="flex items-center justify-between text-sm">
+        <span>
+          {filtered.length === 0 ? 'Showing 0 of 0' : `Showing ${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, filtered.length)} of ${filtered.length}`}
+        </span>
+        <div className="space-x-2"><button disabled={page === 1} onClick={() => setPage((p) => p - 1)} className="rounded-lg border px-3 py-1 disabled:opacity-40">Prev</button><button disabled={page === totalPages || filtered.length === 0} onClick={() => setPage((p) => p + 1)} className="rounded-lg border px-3 py-1 disabled:opacity-40">Next</button></div>
+      </div>
 
       <PatientDrawer patient={activePatient} onClose={() => setActivePatient(null)} />
     </div>
