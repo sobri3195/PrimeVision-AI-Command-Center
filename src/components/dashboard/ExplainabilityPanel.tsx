@@ -1,0 +1,6 @@
+import type { Patient } from '../../types/patient'
+
+export function ExplainabilityPanel({ patient }: { patient: Patient | null }) {
+  if (!patient) return <section className="card p-4"><p className="text-sm text-slate-500">Select a case to open AI Explainability Panel.</p></section>
+  return <section className="card p-4"><h3 className="mb-3 text-sm font-semibold">AI Explainability</h3><div className="space-y-2 text-xs text-slate-600"><p><b>Patient summary:</b> {patient.name}, {patient.age} years, {patient.branch}</p><p><b>AI risk reasoning:</b> Elevated risk score from multimodal OCT and adherence gaps.</p><p><b>Detected signals:</b> OCT anomaly, missed follow-up, post-op symptom escalation.</p><p><b>Confidence level:</b> {patient.aiRiskScore}%</p><p><b>Recommended next step:</b> Same-day specialist review and repeat imaging.</p><p><b>Required doctor review:</b> Pending medical validation before action.</p><p><b>Audit trail:</b> Model v2.3 · Generated 08:12 · Updated by AI triage workflow.</p></div><div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">AI suggestion only. Final clinical decision must be made by a licensed doctor.</div></section>
+}
