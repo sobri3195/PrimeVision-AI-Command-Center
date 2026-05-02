@@ -39,6 +39,34 @@ export function PatientsWorkspace({ patients, globalSearch }: { patients: Patien
   const paginated = useMemo(() => filtered.slice((page - 1) * pageSize, page * pageSize), [filtered, page])
   const selected = records.find(p=>p.id===selectedId) ?? paginated[0] ?? filtered[0]
   const mutate = (id:string, patch:Partial<ClinicalPatient>, action:string) => { const next = records.map(p=>p.id===id?{...p,...patch,auditTrail:[{at:new Date().toISOString(),by:role,action},...p.auditTrail]}:p); setRecords(next); saveLS('pvcc:v3:patients',next); setToast(action) }
+  const exportRows = filtered.map((p) => ({ Name: p.name, MRN: p.medicalRecordNumber, City: p.city, Risk: p.risk, Alert: p.alerts.length ? 'Red flag' : '-' }))
+  const headers = ['Name', 'MRN', 'City', 'Risk', 'Alert']
+  const csvContent = [headers.join(','), ...exportRows.map((r) => headers.map((h) => `"${String(r[h as keyof typeof r]).replace(/"/g, '""')}"`).join(','))].join('\n')
+  const downloadFile = (content: string, filename: string, type: string) => {
+    const blob = new Blob([content], { type })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+  const handleExport = (format: 'csv' | 'xls' | 'doc' | 'pdf') => {
+    if (format === 'csv') return downloadFile(csvContent, 'patients.csv', 'text/csv;charset=utf-8;')
+    if (format === 'xls') return downloadFile(csvContent.replace(/,/g, '\t'), 'patients.xls', 'application/vnd.ms-excel')
+    if (format === 'doc') return downloadFile(headers.join('\t') + '\n' + exportRows.map(r => headers.map(h => r[h as keyof typeof r]).join('\t')).join('\n'), 'patients.doc', 'application/msword')
+    const html = `<html><head><title>Patients Export</title></head><body><h3>Patients</h3><table border="1" cellspacing="0" cellpadding="6"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${exportRows.map(r=>`<tr>${headers.map(h=>`<td>${r[h as keyof typeof r]}</td>`).join('')}</tr>`).join('')}</tbody></table></body></html>`
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+    printWindow.document.write(html)
+    printWindow.document.close()
+    printWindow.focus()
+    printWindow.print()
+  }
+  const copyToClipboard = async () => {
+    await navigator.clipboard.writeText(csvContent)
+    setToast('Patient table copied to clipboard')
+  }
 
   return <div className='space-y-4'>
     <div className='rounded-2xl border bg-white p-4'><div className='flex items-center justify-between'><h2 className='text-xl font-semibold'>PrimeVision AI Clinical Command Center</h2><select value={role} onChange={e=>setRole(e.target.value as UserRole)} className='rounded border px-2 py-1 text-sm'>{roles.map(r=><option key={r}>{r}</option>)}</select></div><p className='text-xs text-violet-700 mt-2'>AI suggestion, doctor must review. AI does not replace physician judgment.</p></div>
@@ -48,11 +76,18 @@ export function PatientsWorkspace({ patients, globalSearch }: { patients: Patien
         <input placeholder='Search name/MRN/city/diagnosis' value={query} onChange={e=>{ setQuery(e.target.value); setPage(1) }} className='mb-2 h-9 w-full rounded border px-2 text-sm'/>
         <div className='mb-2 flex items-center justify-between text-xs'>
           <p className='text-slate-500'>Showing {paginated.length} of {filtered.length} patients</p>
-          <select value={sortBy} onChange={e=>setSortBy(e.target.value as 'name'|'risk'|'city')} className='rounded border px-2 py-1'>
-            <option value='name'>Sort: Name</option>
-            <option value='risk'>Sort: Risk</option>
-            <option value='city'>Sort: City</option>
-          </select>
+          <div className='flex items-center gap-1'>
+            <select value={sortBy} onChange={e=>setSortBy(e.target.value as 'name'|'risk'|'city')} className='rounded border px-2 py-1'>
+              <option value='name'>Sort: Name</option>
+              <option value='risk'>Sort: Risk</option>
+              <option value='city'>Sort: City</option>
+            </select>
+            <button onClick={() => handleExport('pdf')} className='rounded border px-2 py-1'>PDF</button>
+            <button onClick={() => handleExport('xls')} className='rounded border px-2 py-1'>XLS</button>
+            <button onClick={() => handleExport('csv')} className='rounded border px-2 py-1'>CSV</button>
+            <button onClick={() => handleExport('doc')} className='rounded border px-2 py-1'>DOC</button>
+            <button onClick={() => void copyToClipboard()} className='rounded border px-2 py-1'>Copy</button>
+          </div>
         </div>
         <div className='max-h-[520px] overflow-auto'>
           <DataTable headers={['', 'Nama', 'Risk', 'Alert']}>
