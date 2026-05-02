@@ -3,6 +3,7 @@ import type { Patient } from '../../types/patient'
 import { loadLS, saveLS } from '../../utils/localStorage'
 import { AlertBanner, ClinicalTimeline, FollowUpScheduler, PatientProfileCard, PatientTableFooter, RiskBadge, TaskBoard } from '../clinic/Modules'
 import type { ClinicalPatient, UserRole } from '../clinic/types'
+import { DataTable } from '../shared/DataTable'
 
 const roles: UserRole[] = ['Doctor', 'Nurse', 'Admin']
 const tabs = ['Overview','SOAP','Eye Exam','Imaging','Timeline','Prescription','Follow-up','Referral'] as const
@@ -19,10 +20,24 @@ export function PatientsWorkspace({ patients, globalSearch }: { patients: Patien
   const [tab, setTab] = useState<(typeof tabs)[number]>('Overview')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  const [sortBy, setSortBy] = useState<'name' | 'risk' | 'city'>('name')
+  const [page, setPage] = useState(1)
+  const pageSize = 8
   const [records, setRecords] = useState<ClinicalPatient[]>(() => loadLS('pvcc:v3:patients', patients.slice(0,20).map(bootstrap)) )
   const [toast, setToast] = useState('')
-  const filtered = useMemo(() => records.filter(p => `${globalSearch} ${query} ${p.name} ${p.medicalRecordNumber} ${p.city} ${p.activeDiagnosis}`.toLowerCase().includes(query.toLowerCase())), [records,query,globalSearch])
-  const selected = records.find(p=>p.id===selectedId) ?? filtered[0]
+  const filtered = useMemo(() => records
+    .filter(p => `${globalSearch} ${query} ${p.name} ${p.medicalRecordNumber} ${p.city} ${p.activeDiagnosis}`.toLowerCase().includes(query.toLowerCase()))
+    .sort((a, b) => {
+      if (sortBy === 'risk') {
+        const rank: Record<ClinicalPatient['risk'], number> = { Critical: 0, High: 1, Medium: 2, Low: 3 }
+        return rank[a.risk] - rank[b.risk]
+      }
+      if (sortBy === 'city') return a.city.localeCompare(b.city)
+      return a.name.localeCompare(b.name)
+    }), [records, query, globalSearch, sortBy])
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const paginated = useMemo(() => filtered.slice((page - 1) * pageSize, page * pageSize), [filtered, page])
+  const selected = records.find(p=>p.id===selectedId) ?? paginated[0] ?? filtered[0]
   const mutate = (id:string, patch:Partial<ClinicalPatient>, action:string) => { const next = records.map(p=>p.id===id?{...p,...patch,auditTrail:[{at:new Date().toISOString(),by:role,action},...p.auditTrail]}:p); setRecords(next); saveLS('pvcc:v3:patients',next); setToast(action) }
 
   return <div className='space-y-4'>
@@ -30,9 +45,27 @@ export function PatientsWorkspace({ patients, globalSearch }: { patients: Patien
     <TaskBoard patients={records}/>
     <div className='grid gap-4 lg:grid-cols-[1.2fr_1.8fr]'>
       <section className='rounded-2xl border bg-white p-3'>
-        <input placeholder='Search name/MRN/city/diagnosis' value={query} onChange={e=>setQuery(e.target.value)} className='mb-2 h-9 w-full rounded border px-2 text-sm'/>
-        <div className='max-h-[520px] overflow-auto'><table className='w-full text-sm'><thead className='sticky top-0 bg-slate-50'><tr><th></th><th className='text-left'>Nama</th><th>Risk</th><th>Alert</th></tr></thead><tbody>{filtered.map(p=><tr key={p.id} className='border-t hover:bg-slate-50'><td><input type='checkbox'/></td><td><button className='text-left' onClick={()=>setSelectedId(p.id)}>{p.name}<div className='text-xs text-slate-500'>{p.medicalRecordNumber} • {p.city}</div></button></td><td><RiskBadge risk={p.risk}/></td><td>{p.alerts.length? <span className='text-xs text-red-600'>Red flag</span>:'-'}</td></tr>)}</tbody></table></div>
-        <PatientTableFooter page={1} total={filtered.length}/>
+        <input placeholder='Search name/MRN/city/diagnosis' value={query} onChange={e=>{ setQuery(e.target.value); setPage(1) }} className='mb-2 h-9 w-full rounded border px-2 text-sm'/>
+        <div className='mb-2 flex items-center justify-between text-xs'>
+          <p className='text-slate-500'>Showing {paginated.length} of {filtered.length} patients</p>
+          <select value={sortBy} onChange={e=>setSortBy(e.target.value as 'name'|'risk'|'city')} className='rounded border px-2 py-1'>
+            <option value='name'>Sort: Name</option>
+            <option value='risk'>Sort: Risk</option>
+            <option value='city'>Sort: City</option>
+          </select>
+        </div>
+        <div className='max-h-[520px] overflow-auto'>
+          <DataTable headers={['', 'Nama', 'Risk', 'Alert']}>
+            {paginated.map(p=><tr key={p.id} className='border-t hover:bg-slate-50'><td className='px-4 py-2'><input type='checkbox'/></td><td className='px-4 py-2'><button className='text-left' onClick={()=>setSelectedId(p.id)}>{p.name}<div className='text-xs text-slate-500'>{p.medicalRecordNumber} • {p.city}</div></button></td><td className='px-4 py-2'><RiskBadge risk={p.risk}/></td><td className='px-4 py-2'>{p.alerts.length? <span className='text-xs text-red-600'>Red flag</span>:'-'}</td></tr>)}
+          </DataTable>
+        </div>
+        <div className='mt-2 flex items-center justify-between'>
+          <PatientTableFooter page={page} total={filtered.length}/>
+          <div className='space-x-1'>
+            <button disabled={page===1} onClick={()=>setPage(p=>Math.max(1,p-1))} className='rounded border px-2 py-1 text-xs disabled:opacity-40'>Prev</button>
+            <button disabled={page===totalPages} onClick={()=>setPage(p=>Math.min(totalPages,p+1))} className='rounded border px-2 py-1 text-xs disabled:opacity-40'>Next</button>
+          </div>
+        </div>
       </section>
       {selected && <section className='space-y-3'>
         <AlertBanner alerts={selected.alerts}/>
