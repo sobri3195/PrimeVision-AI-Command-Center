@@ -1,185 +1,53 @@
 import { useMemo, useState } from 'react'
 import type { Patient } from '../../types/patient'
 import { loadLS, saveLS } from '../../utils/localStorage'
+import { AlertBanner, ClinicalTimeline, FollowUpScheduler, PatientProfileCard, PatientTableFooter, RiskBadge, TaskBoard } from '../clinic/Modules'
+import type { ClinicalPatient, UserRole } from '../clinic/types'
 
-type RiskLevel = 'Stable' | 'Low' | 'Medium' | 'High' | 'Critical'
+const roles: UserRole[] = ['Doctor', 'Nurse', 'Admin']
+const tabs = ['Overview','SOAP','Eye Exam','Imaging','Timeline','Prescription','Follow-up','Referral'] as const
+const soapTemplates: Record<string, {subjective:string;objective:string;assessment:string;plan:string}> = { Katarak:{subjective:'Visus buram progresif',objective:'Lens opacity +',assessment:'Suspect cataract',plan:'Biometri dan edukasi operasi'}, Glaukoma:{subjective:'Nyeri mata, halo',objective:'IOP tinggi',assessment:'Suspect glaucoma',plan:'Start glaucoma drop, urgent review'}, 'Diabetic Retinopathy':{subjective:'Penglihatan menurun',objective:'Fundus: mikroaneurisma',assessment:'DR',plan:'OCT/fundus + retina consult'}, AMD:{subjective:'Distorsi sentral',objective:'Macula perubahan drusen',assessment:'AMD',plan:'OCT macula'}, 'Retinal Detachment':{subjective:'Floaters mendadak + curtain vision',objective:'Temuan retina ablasio',assessment:'Suspected RD',plan:'Emergency retina referral'}, 'Dry Eye':{subjective:'Mata kering/perih',objective:'TBUT menurun',assessment:'Dry eye',plan:'Artificial tears + hygiene'}, Uveitis:{subjective:'Nyeri/fotofobia',objective:'AC cell +',assessment:'Uveitis',plan:'Steroid sesuai evaluasi'}, 'Post-op Cataract':{subjective:'Kontrol pasca operasi',objective:'Luka operasi baik',assessment:'Post-op stable',plan:'Lanjut tetes sesuai jadwal'} }
 
-type SoapNote = {
-  subjective: string
-  objective: string
-  assessment: string
-  plan: string
-}
-
-type EditablePatient = Patient & {
-  soap: SoapNote
-}
-
-const reviewStatuses = ['Pending', 'In Review', 'Reviewed', 'Escalated']
-const doctors = ['Dr. Olivia Tan', 'Dr. Arief Putra', 'Dr. Shinta Wijaya', 'Dr. Michael Lim']
-const evidenceByIndex = [
-  ['OCT anomaly', 'Doctor review required'],
-  ['Missed follow-up', 'Retina screening due'],
-  ['Post-op red flags'],
-  ['Diabetes screening due', 'Follow-up gap'],
-]
-
-const mapRisk = (score: number): RiskLevel => (score >= 85 ? 'Critical' : score >= 70 ? 'High' : score >= 50 ? 'Medium' : score >= 30 ? 'Low' : 'Stable')
-
-const riskTone: Record<RiskLevel, string> = {
-  Critical: 'bg-red-50 text-red-700 border-red-100',
-  High: 'bg-orange-50 text-orange-700 border-orange-100',
-  Medium: 'bg-amber-50 text-amber-700 border-amber-100',
-  Low: 'bg-sky-50 text-sky-700 border-sky-100',
-  Stable: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-}
-
-const blankSoap = (): SoapNote => ({
-  subjective: '',
-  objective: '',
-  assessment: '',
-  plan: '',
+const bootstrap = (p: Patient, idx:number): ClinicalPatient => ({
+  id:p.id,name:p.name,medicalRecordNumber:p.medicalRecordNumber,city:p.city,age:45+(idx%30),gender:idx%2?'Male':'Female',doctor:['Dr. Olivia Tan','Dr. Arief Putra','Dr. Shinta Wijaya'][idx%3],chiefComplaint:'Pandangan kabur',activeDiagnosis:'Suspect Cataract',allergies:idx%3?['Tidak ada']:['NSAID'],meds:['Artificial tears'],systemicHistory:idx%2?['diabetes']:['hypertension'],ocularHistory:'Miopia',ocularSurgery:'-',emergencyContact:'Keluarga +62-812-0000',followUpDate:'2026-05-01',followUpReason:'IOP recheck',reminderStatus:'sent',aiRiskScore:p.aiRiskScore,risk:'Medium',riskReasons:['Usia > 60','IOP borderline'],alerts:idx%5===0?[{code:'high_iop',label:'Very high IOP',severity:'high'}]:[],soap:{subjective:'',objective:'',assessment:'',plan:'',approvedByDoctor:false},
+  eyeExam:{od:{va:'6/18',bcva:'6/9',iop:'22',pupil:'normal',eom:'normal',conjunctiva:'normal',cornea:'normal',anteriorChamber:'normal',lens:'abnormal',vitreous:'normal',retina:'normal',cdr:'0.5',macula:'normal',peripheralRetina:'normal'},os:{va:'6/24',bcva:'6/12',iop:'24',pupil:'normal',eom:'normal',conjunctiva:'normal',cornea:'normal',anteriorChamber:'normal',lens:'abnormal',vitreous:'normal',retina:'normal',cdr:'0.6',macula:'normal',peripheralRetina:'normal'},octFinding:'Mild RNFL thinning',fundusPhotoFinding:'No acute bleeding',diagnosisImpression:'Glaucoma suspect'},
+  timeline:[{date:'2026-04-20',complaint:'Mata kabur',diagnosis:'Cataract',procedure:'Slit lamp',prescription:'Artificial tears',followUp:'1 month',status:'reviewed'}], imaging:[{id:'img1',date:'2026-04-20',type:'OCT',status:'suspicious',note:'RNFL thinning'}], prescriptions:[],procedures:[],referrals:[],auditTrail:[{at:new Date().toISOString(),by:'system',action:'Record initialized'}]
 })
 
-const toEditable = (p: Patient): EditablePatient => ({ ...p, soap: blankSoap() })
-
 export function PatientsWorkspace({ patients, globalSearch }: { patients: Patient[]; globalSearch: string; selectedPatient: Patient | null; onSelectPatient: (id: string | null) => void }) {
-  const [query, setQuery] = useState('')
-  const [risk, setRisk] = useState('All')
+  const [role, setRole] = useState<UserRole>('Doctor')
+  const [tab, setTab] = useState<(typeof tabs)[number]>('Overview')
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [form, setForm] = useState({ name: '', medicalRecordNumber: '', city: '', aiRiskScore: 50 })
-
-  const [patientRecords, setPatientRecords] = useState<EditablePatient[]>(() => {
-    const persisted = loadLS<EditablePatient[] | null>('pvcc:v2:patients:crud', null)
-    if (persisted) return persisted
-    return patients.map(toEditable)
-  })
-
-  const filtered = useMemo(() => {
-    const q = `${globalSearch} ${query}`.toLowerCase()
-    return patientRecords.filter((p) => {
-      const riskLevel = mapRisk(p.aiRiskScore)
-      return (!q || `${p.name} ${p.medicalRecordNumber} ${p.city}`.toLowerCase().includes(q)) && (risk === 'All' || risk === riskLevel)
-    })
-  }, [patientRecords, globalSearch, query, risk])
-
-  const selectedPatient = useMemo(() => patientRecords.find((p) => p.id === selectedId) ?? null, [patientRecords, selectedId])
-
-  const saveRecords = (next: EditablePatient[]) => {
-    setPatientRecords(next)
-    saveLS('pvcc:v2:patients:crud', next)
-  }
-
-  const handleCreate = () => {
-    if (!form.name.trim() || !form.medicalRecordNumber.trim()) return
-    const template = patientRecords[0]
-    if (!template) return
-    const newPatient: EditablePatient = {
-      ...template,
-      id: `custom-${Date.now()}`,
-      name: form.name,
-      medicalRecordNumber: form.medicalRecordNumber,
-      city: form.city || 'Medan',
-      aiRiskScore: Number(form.aiRiskScore),
-      lastVisitDate: new Date().toISOString().slice(0, 10),
-      soap: blankSoap(),
-    }
-    saveRecords([newPatient, ...patientRecords])
-    setForm({ name: '', medicalRecordNumber: '', city: '', aiRiskScore: 50 })
-  }
-
-  const updatePatientAndSoap = (id: string, patch: Partial<EditablePatient>) => {
-    const next = patientRecords.map((p) => (p.id === id ? { ...p, ...patch } : p))
-    saveRecords(next)
-  }
-
-  const deletePatient = (id: string) => {
-    const next = patientRecords.filter((p) => p.id !== id)
-    saveRecords(next)
-    if (selectedId === id) setSelectedId(null)
-  }
+  const [query, setQuery] = useState('')
+  const [records, setRecords] = useState<ClinicalPatient[]>(() => loadLS('pvcc:v3:patients', patients.slice(0,20).map(bootstrap)) )
+  const [toast, setToast] = useState('')
+  const filtered = useMemo(() => records.filter(p => `${globalSearch} ${query} ${p.name} ${p.medicalRecordNumber} ${p.city} ${p.activeDiagnosis}`.toLowerCase().includes(query.toLowerCase())), [records,query,globalSearch])
+  const selected = records.find(p=>p.id===selectedId) ?? filtered[0]
+  const mutate = (id:string, patch:Partial<ClinicalPatient>, action:string) => { const next = records.map(p=>p.id===id?{...p,...patch,auditTrail:[{at:new Date().toISOString(),by:role,action},...p.auditTrail]}:p); setRecords(next); saveLS('pvcc:v3:patients',next); setToast(action) }
 
   return <div className='space-y-4'>
-    <section className='rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm'>
-      <h2 className='text-2xl font-semibold text-slate-900'>Manajemen Pasien (CRUD) + SOAP Mata</h2>
-      <p className='mt-1 text-sm text-slate-600'>Tambah, ubah, hapus data pasien, lalu dokumentasikan SOAP kedokteran untuk kasus oftalmologi.</p>
-    </section>
-
-    <section className='rounded-2xl border border-slate-200 bg-white p-4 shadow-sm'>
-      <p className='mb-3 text-sm font-semibold'>Tambah Pasien Baru</p>
-      <div className='grid gap-3 md:grid-cols-4'>
-        <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder='Nama pasien' className='h-10 rounded-lg border border-slate-200 px-3 text-sm' />
-        <input value={form.medicalRecordNumber} onChange={(e) => setForm({ ...form, medicalRecordNumber: e.target.value })} placeholder='No. RM' className='h-10 rounded-lg border border-slate-200 px-3 text-sm' />
-        <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder='Kota' className='h-10 rounded-lg border border-slate-200 px-3 text-sm' />
-        <input type='number' min={0} max={100} value={form.aiRiskScore} onChange={(e) => setForm({ ...form, aiRiskScore: Number(e.target.value) })} placeholder='Risk Score' className='h-10 rounded-lg border border-slate-200 px-3 text-sm' />
-      </div>
-      <button onClick={handleCreate} className='mt-3 rounded-lg bg-slate-900 px-3 py-2 text-sm text-white'>Tambah Pasien</button>
-    </section>
-
-    <section className='rounded-2xl border border-slate-200 bg-white p-4 shadow-sm'>
-      <div className='grid gap-3 md:grid-cols-2'>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder='Cari pasien / RM / kota' className='h-10 rounded-lg border border-slate-200 px-3 text-sm' />
-        <select value={risk} onChange={(e) => setRisk(e.target.value)} className='h-10 rounded-lg border border-slate-200 px-3 text-sm'>
-          {['All', 'Stable', 'Low', 'Medium', 'High', 'Critical'].map((r) => <option key={r}>{r}</option>)}
-        </select>
-      </div>
-    </section>
-
-    <section className='overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm'>
-      <div className='max-h-[420px] overflow-auto'>
-        <table className='min-w-full text-sm'>
-          <thead className='bg-slate-50 text-slate-600'>
-            <tr>
-              <th className='px-3 py-2 text-left'>Nama</th><th className='px-3 py-2 text-left'>No. RM</th><th className='px-3 py-2 text-left'>Kota</th><th className='px-3 py-2 text-left'>Risk</th><th className='px-3 py-2 text-left'>Dokter</th><th className='px-3 py-2 text-left'>Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.slice(0, 40).map((p, i) => {
-              const riskLevel = mapRisk(p.aiRiskScore)
-              return <tr key={p.id} className='border-t border-slate-100'>
-                <td className='px-3 py-2'>
-                  <input value={p.name} onChange={(e) => updatePatientAndSoap(p.id, { name: e.target.value })} className='rounded border px-2 py-1' />
-                </td>
-                <td className='px-3 py-2'>
-                  <input value={p.medicalRecordNumber} onChange={(e) => updatePatientAndSoap(p.id, { medicalRecordNumber: e.target.value })} className='rounded border px-2 py-1' />
-                </td>
-                <td className='px-3 py-2'>
-                  <input value={p.city} onChange={(e) => updatePatientAndSoap(p.id, { city: e.target.value })} className='rounded border px-2 py-1' />
-                </td>
-                <td className='px-3 py-2'><span className={`rounded-full border px-2 py-1 text-xs ${riskTone[riskLevel]}`}>{riskLevel} ({p.aiRiskScore})</span></td>
-                <td className='px-3 py-2'>{doctors[i % doctors.length]}</td>
-                <td className='px-3 py-2'>
-                  <div className='flex gap-2'>
-                    <button onClick={() => setSelectedId(p.id)} className='rounded border px-2 py-1 text-xs'>SOAP</button>
-                    <button onClick={() => deletePatient(p.id)} className='rounded border border-red-200 px-2 py-1 text-xs text-red-600'>Hapus</button>
-                  </div>
-                </td>
-              </tr>
-            })}
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    {selectedPatient && <section className='rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm'>
-      <h3 className='text-lg font-semibold text-slate-900'>SOAP Kedokteran Mata - {selectedPatient.name}</h3>
-      <p className='mb-3 text-xs text-slate-600'>Contoh kasus mata: keluhan mata kabur, evaluasi visus, IOP, fundus, dan rencana tatalaksana.</p>
-      <div className='grid gap-3'>
-        {([
-          ['subjective', 'S (Subjective)'],
-          ['objective', 'O (Objective)'],
-          ['assessment', 'A (Assessment)'],
-          ['plan', 'P (Plan)'],
-        ] as const).map(([key, label]) => <label key={key} className='text-sm'>
-          <span className='mb-1 block font-medium'>{label}</span>
-          <textarea value={selectedPatient.soap[key]} onChange={(e) => updatePatientAndSoap(selectedPatient.id, { soap: { ...selectedPatient.soap, [key]: e.target.value } })} className='min-h-[88px] w-full rounded-lg border border-slate-200 p-2 text-sm' placeholder={`Isi ${label} untuk kasus mata`} />
-        </label>)}
-      </div>
-      <p className='mt-3 rounded-lg border border-violet-200 bg-violet-50 p-2 text-xs text-violet-700'>AI suggestions require doctor review. Not for autonomous clinical diagnosis.</p>
-    </section>}
-
-    <section className='rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600'>
-      <p>Template sinyal klinis: {evidenceByIndex[0].join(', ')}. Data review status: {reviewStatuses.join(' / ')}.</p>
-    </section>
+    <div className='rounded-2xl border bg-white p-4'><div className='flex items-center justify-between'><h2 className='text-xl font-semibold'>PrimeVision AI Clinical Command Center</h2><select value={role} onChange={e=>setRole(e.target.value as UserRole)} className='rounded border px-2 py-1 text-sm'>{roles.map(r=><option key={r}>{r}</option>)}</select></div><p className='text-xs text-violet-700 mt-2'>AI suggestion, doctor must review. AI does not replace physician judgment.</p></div>
+    <TaskBoard patients={records}/>
+    <div className='grid gap-4 lg:grid-cols-[1.2fr_1.8fr]'>
+      <section className='rounded-2xl border bg-white p-3'>
+        <input placeholder='Search name/MRN/city/diagnosis' value={query} onChange={e=>setQuery(e.target.value)} className='mb-2 h-9 w-full rounded border px-2 text-sm'/>
+        <div className='max-h-[520px] overflow-auto'><table className='w-full text-sm'><thead className='sticky top-0 bg-slate-50'><tr><th></th><th className='text-left'>Nama</th><th>Risk</th><th>Alert</th></tr></thead><tbody>{filtered.map(p=><tr key={p.id} className='border-t hover:bg-slate-50'><td><input type='checkbox'/></td><td><button className='text-left' onClick={()=>setSelectedId(p.id)}>{p.name}<div className='text-xs text-slate-500'>{p.medicalRecordNumber} • {p.city}</div></button></td><td><RiskBadge risk={p.risk}/></td><td>{p.alerts.length? <span className='text-xs text-red-600'>Red flag</span>:'-'}</td></tr>)}</tbody></table></div>
+        <PatientTableFooter page={1} total={filtered.length}/>
+      </section>
+      {selected && <section className='space-y-3'>
+        <AlertBanner alerts={selected.alerts}/>
+        <PatientProfileCard p={selected}/>
+        <div className='flex flex-wrap gap-2'>{tabs.map(t=><button key={t} onClick={()=>setTab(t)} className={`rounded-full px-3 py-1 text-xs ${tab===t?'bg-slate-900 text-white':'bg-slate-100'}`}>{t}</button>)}</div>
+        {tab==='Overview' && <div className='rounded-xl border bg-white p-3 text-sm'>Audit trail: {selected.auditTrail.slice(0,4).map(a=>`${a.by} ${a.action}`).join(' • ')}</div>}
+        {tab==='SOAP' && <div className='rounded-xl border bg-white p-3 space-y-2'>{Object.keys(soapTemplates).map(k=><button key={k} className='mr-1 rounded border px-2 py-1 text-xs' onClick={()=>mutate(selected.id,{soap:{...selected.soap,...soapTemplates[k]}},`Apply SOAP template ${k}`)}>{k}</button>)}{(['subjective','objective','assessment','plan'] as const).map(f=><textarea key={f} value={selected.soap[f]} disabled={role==='Admin'} onChange={e=>mutate(selected.id,{soap:{...selected.soap,[f]:e.target.value}},`Edit SOAP ${f}`)} className='min-h-16 w-full rounded border p-2 text-sm' placeholder={f}/>) }{role==='Doctor' && <button className='rounded bg-emerald-600 px-3 py-1 text-white text-sm' onClick={()=>mutate(selected.id,{soap:{...selected.soap,approvedByDoctor:true}},'Approve SOAP')}>Approve SOAP</button>}</div>}
+        {tab==='Eye Exam' && <div className='grid gap-2 rounded-xl border bg-white p-3 md:grid-cols-2'>{(['od','os'] as const).map(side=><div key={side}><p className='font-semibold uppercase'>{side}</p>{(['va','bcva','iop','pupil','eom','conjunctiva','cornea','anteriorChamber','lens','vitreous','retina','cdr','macula','peripheralRetina'] as const).map(k=><input key={k} disabled={role==='Admin'} className='mb-1 w-full rounded border px-2 py-1 text-xs' value={selected.eyeExam[side][k]} onChange={e=>mutate(selected.id,{eyeExam:{...selected.eyeExam,[side]:{...selected.eyeExam[side],[k]:e.target.value}}},`Edit EyeExam ${side}.${k}`)}/>)}</div>)}</div>}
+        {tab==='Imaging' && <div className='grid gap-2 md:grid-cols-2'>{selected.imaging.map(im=><div key={im.id} className='rounded-xl border bg-white p-3 text-sm'><p>{im.type} • {im.date}</p><p className='text-xs'>{im.status}</p><textarea className='mt-2 w-full rounded border p-1 text-xs' value={im.note} onChange={e=>mutate(selected.id,{imaging:selected.imaging.map(x=>x.id===im.id?{...x,note:e.target.value}:x)},'Review Image')}/></div>)}</div>}
+        {tab==='Timeline' && <ClinicalTimeline p={selected}/>}        
+        {tab==='Prescription' && <div className='rounded-xl border bg-white p-3 text-sm'><button className='rounded border px-2 py-1 text-xs' onClick={()=>mutate(selected.id,{prescriptions:[...selected.prescriptions,{id:Date.now().toString(),name:'Prednisolone',dose:'1 gtt',frequency:'QID',duration:'7 days',instruction:'monitor IOP',category:'steroid'}]},'Add Medication')}>Add Medication</button><div className='mt-2 space-y-1'>{selected.prescriptions.map(rx=><div key={rx.id} className='rounded border p-2'>{rx.name} - {rx.category} {((rx.category==='steroid')&&(Number(selected.eyeExam.od.iop)>21||Number(selected.eyeExam.os.iop)>21))&&<span className='ml-2 text-red-600 text-xs'>Warning steroid on high IOP</span>}</div>)}</div></div>}
+        {tab==='Follow-up' && <FollowUpScheduler p={selected} onChange={(d,r)=>mutate(selected.id,{followUpDate:d,followUpReason:r},'Update follow-up')}/>} 
+        {tab==='Referral' && <div className='rounded-xl border bg-white p-3 text-sm space-x-2'>{['Refer to Retina Specialist','Refer to Glaucoma Specialist','Refer to Cornea Specialist','Emergency Referral'].map(btn=><button key={btn} className='rounded border px-2 py-1 text-xs' onClick={()=>mutate(selected.id,{referrals:[...selected.referrals,{id:Date.now().toString(),type:btn,reason:selected.activeDiagnosis,status:'pending'}]},btn)}>{btn}</button>)}</div>}
+      </section>}
+    </div>
+    {toast && <div className='fixed bottom-4 right-4 rounded bg-slate-900 px-3 py-2 text-xs text-white'>{toast}</div>}
   </div>
 }
